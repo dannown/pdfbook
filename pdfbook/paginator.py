@@ -16,6 +16,8 @@ def signature_page_order(num_up, pages_per_signature):
             return [12, 1, 2, 11,
                     10, 3, 4, 9,
                     8, 5, 6, 7]
+        if pages_per_signature == 4:
+            return [4, 1, 2, 3]
         if pages_per_signature == 8:
             return [8, 1, 2, 7,
                     6, 3, 4, 5]
@@ -35,24 +37,31 @@ def should_rotate_page(page_num, num_up, pages_per_signature):
     return False
 
 
-def write_paginated_images(image: Image, n_up: int, pages_per_signature: int, filename: str):
+def write_paginated_images(image: Image, n_up: int, pages_per_signature: int, filename: str, blank: Image):
+    print(f"writing out {len(image.sequence)} pages.")
     if len(image.sequence) % pages_per_signature != 0:
         n = pages_per_signature - len(image.sequence) % pages_per_signature
         p = image.sequence[0]
         n %= n_up * 2
-        print(f"adding {n} blank pages to end. (There are now "
+        print(f"adding {n} blank pages to end. There are now "
               f"{(len(image.sequence) + n) % pages_per_signature} pages in the last signature.")
         for x in range(n):
-            image.sequence.append(Image(height=p.height, width=p.width, resolution=p.resolution))
+            if blank != None:
+                image.sequence.append(blank)
+            else:
+                image.sequence.append(Image(height=p.height, width=p.width, resolution=p.resolution))
     paginated_image = Image()
-    num_signatures = int(len(image.sequence) / pages_per_signature)
-    for n in range(num_signatures):
-        if len(image.sequence) - n * pages_per_signature < pages_per_signature:
-            pages_per_signature = len(image.sequence) - n * pages_per_signature
+    offset = 0
+    while offset < len(image.sequence):
+        if len(image.sequence) - offset < pages_per_signature:
+            pages_per_signature = len(image.sequence) - offset
         for i in signature_page_order(n_up, pages_per_signature):
-            big_i = pages_per_signature * n + i - 1
+            big_i = offset + i - 1
             page = image.sequence[big_i]
             if should_rotate_page(i, n_up, pages_per_signature):
                 page.rotate(180)
+            # print(f"adding page {big_i}")
             paginated_image.sequence.append(page)
+        offset += pages_per_signature
     paginated_image.save(filename=filename)
+    paginated_image.close()
