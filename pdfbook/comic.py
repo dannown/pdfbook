@@ -9,7 +9,7 @@ from yaml import load, Loader
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 
-import paginator
+from paginator import Paginator
 
 MAX_BOOK_SIZE = 128
 global config
@@ -81,6 +81,8 @@ def setup_file_config(file_config):
 output = Image()
 books_count = 1
 cbz = None
+paginator = Paginator(num_up=config['n_up'],
+                      pages_per_signature=config['pages_per_signature'])
 for file in config['files']:
     setup_file_config(file)
     input_filename = full_path(config['file_config']['name'])
@@ -95,6 +97,7 @@ for file in config['files']:
         exit(1)
     if 'blank' in config['file_config']:
         config['file_config']['blank'] = Image(blob=cbz.read(config['file_config']['blank']))
+    paginator.blank = config['file_config']['blank'] if 'blank' in config['file_config'] else None
     for name in cbz.namelist():
         # print(f"filename: {name}", end=None, flush=False)
         if re.search(".*\\.(jpg|png)", name) is None:
@@ -125,8 +128,8 @@ for file in config['files']:
                 pages.sequence.append(config['file_config']['blank'])
             else:
                 pages.sequence.append(Image(height=pages.sequence[0].height,
-                                         width=pages.sequence[0].width,
-                                         resolution=pages.sequence[0].resolution))
+                                            width=pages.sequence[0].width,
+                                            resolution=pages.sequence[0].resolution))
 
     if split is not None and split == 0:
         print(f"Adding blank page to balance split.")
@@ -147,23 +150,17 @@ for file in config['files']:
         output.sequence = output.sequence[:config['max_book_size']]
         print(f"writing out book {config['output_filename']}_{books_count:03d}.pdf")
         print(f"Saving {len(next_book.sequence)} pages for next book")
-        paginator.write_paginated_images(output, config['n_up'],
-                                         config['pages_per_signature'],
-                                         full_path(f"{config['output_filename']}_{books_count:03d}.pdf"),
-                                         config['file_config']['blank'] if 'blank' in config['file_config'] else None)
+        paginator.write_paginated_images(output,
+                                         full_path(f"{config['output_filename']}_{books_count:03d}.pdf"))
         books_count += 1
         output.close()
         output = next_book
 if books_count > 1:
     print(f"writing out book {config['output_filename']}_{books_count:03d}.pdf")
-    paginator.write_paginated_images(output, config['n_up'],
-                                     config['pages_per_signature'],
-                                     full_path(f"{config['output_filename']}_{books_count:03d}.pdf"),
-                                     config['file_config']['blank'] if 'blank' in config['file_config'] else None)
+    paginator.write_paginated_images(output,
+                                     full_path(f"{config['output_filename']}_{books_count:03d}.pdf"))
 else:
-    paginator.write_paginated_images(output, config['n_up'],
-                                     config['pages_per_signature'],
-                                     full_path(f"{config['output_filename']}.pdf"),
-                                     config['file_config']['blank'] if 'blank' in config['file_config'] else None)
+    paginator.write_paginated_images(output,
+                                     full_path(f"{config['output_filename']}.pdf"))
 output.close()
 cbz.close()
