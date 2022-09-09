@@ -2,6 +2,7 @@ import os.path
 import re
 
 from wand.image import Image
+from wand.resource import limits as wand_limits
 import sys
 import zipfile
 import rarfile
@@ -35,6 +36,7 @@ def insert_after(file_name):
         return True
 
 
+wand_limits['memory'] = 1024 * 1024 * 1024 * 10  # ten gibibyte
 if len(sys.argv) <= 1:
     Tk().withdraw()
     configfile = askopenfilename()
@@ -98,8 +100,9 @@ for file in config['files']:
     if 'blank' in config['file_config']:
         config['file_config']['blank'] = Image(blob=cbz.read(config['file_config']['blank']))
     paginator.blank = config['file_config']['blank'] if 'blank' in config['file_config'] else None
-    for name in cbz.namelist():
-        # print(f"filename: {name}", end=None, flush=False)
+    name_list = cbz.namelist().copy()
+    name_list.sort()
+    for name in name_list:
         if re.search(".*\\.(jpg|png)", name) is None:
             continue
         if should_skip(name):
@@ -148,10 +151,13 @@ for file in config['files']:
         next_book = Image()
         next_book.sequence.extend(output.sequence[config['max_book_size']:])
         output.sequence = output.sequence[:config['max_book_size']]
-        print(f"writing out book {config['output_filename']}_{books_count:03d}.pdf")
-        print(f"Saving {len(next_book.sequence)} pages for next book")
-        paginator.write_paginated_images(output,
-                                         full_path(f"{config['output_filename']}_{books_count:03d}.pdf"))
+        if 'only_print' not in config or re.search(config['only_print'], f"{books_count:03d}"):
+            print(f"writing out book {config['output_filename']}_{books_count:03d}.pdf")
+            print(f"Saving {len(next_book.sequence)} pages for next book")
+            paginator.write_paginated_images(output,
+                                             full_path(f"{config['output_filename']}_{books_count:03d}.pdf"))
+        else:
+            print(f"skipping book {config['output_filename']}_{books_count:03d}.pdf")
         books_count += 1
         output.close()
         output = next_book

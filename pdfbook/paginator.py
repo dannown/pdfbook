@@ -122,4 +122,5 @@ class Paginator:
                     layout.sequence.append(side)
         else:
             layout = image
+        layout.compression = "jpeg"
         layout.save(filename=filename)
