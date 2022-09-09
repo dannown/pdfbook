@@ -28,6 +28,10 @@ class Config:
                 if isinstance(self.config_dict['insert_after'], list):
                     joined = '|'.join(self.config_dict['insert_after'])
                     self.config_dict['insert_after'] = joined
+            if 'insert_before' in self.config_dict:
+                if isinstance(self.config_dict['insert_before'], list):
+                    joined = '|'.join(self.config_dict['insert_before'])
+                    self.config_dict['insert_before'] = joined
             self.config_dict['file_config'] = None
 
     def __copy__(self):
@@ -47,6 +51,11 @@ class Config:
     def insert_after(self, file_name):
         if 'insert_after' in self.config_dict and \
                 re.search(self.config_dict['insert_after'], os.path.basename(file_name)) is not None:
+            return True
+
+    def insert_before(self, file_name):
+        if 'insert_before' in self.config_dict and \
+                re.search(self.config_dict['insert_before'], os.path.basename(file_name)) is not None:
             return True
 
     def should_skip(self, file_name):

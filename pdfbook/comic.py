@@ -45,6 +45,16 @@ for file_config in config.files():
             continue
         page_blob = cbz.read(name)
         page = Image.open(BytesIO(page_blob))
+        # insert a page before. if this page is too wide, insert a half-width.
+        if file_config.insert_before(name):
+            if paginator.blank is not None:
+                file_pages.append(paginator.blank)
+            else:
+                if page.width > page.height:
+                    file_pages.append(Image.new("RGB", (int(page.width/2), page.height), "white"))
+                else:
+                    file_pages.append(Image.new("RGB", (page.width, page.height), "white"))
+
         if page.width > page.height:
             print(f"over-wide page. splitting {name}.")
             page1 = page.crop((0, 0, int(page.width / 2), page.height))
