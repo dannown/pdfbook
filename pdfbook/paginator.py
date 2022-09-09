@@ -1,5 +1,5 @@
-from wand.drawing import Drawing
-from wand.image import Image
+from PIL import Image
+from typing import List
 
 
 class Paginator:
@@ -47,85 +47,75 @@ class Paginator:
                 return page_num in [3, 6, 5, 4]
         return False
 
-    def write_paginated_images(self, image: Image, filename: str):
-        print(f"writing out {len(image.sequence)} pages.")
-        if len(image.sequence) % self.pages_per_signature != 0:
-            n = self.pages_per_signature - len(image.sequence) % self.pages_per_signature
-            p = image.sequence[0]
+    def write_paginated_images(self, images: list, filename: str):
+        print(f"writing out {len(images)} pages.")
+        if len(images) % self.pages_per_signature != 0:
+            n = self.pages_per_signature - len(images) % self.pages_per_signature
+            p = images[0]
             n %= self.num_up * 2
             print(f"adding {n} blank pages to end. There are now "
-                  f"{(len(image.sequence) + n) % self.pages_per_signature} pages in the last signature.")
+                  f"{(len(images) + n) % self.pages_per_signature} pages in the last signature.")
             for x in range(n):
                 if self.blank is not None:
-                    image.sequence.append(self.blank)
+                    images.append(self.blank)
                 else:
-                    image.sequence.append(Image(height=p.height, width=p.width, resolution=p.resolution))
-        paginated_image = Image()
+                    images.append(Image.new("RGB", (p.width, p.height), "white"))
+        paginated_images = []
         offset = 0
         tmp_pps = self.pages_per_signature
-        while offset < len(image.sequence):
-            if len(image.sequence) - offset < self.pages_per_signature:
-                self.pages_per_signature = len(image.sequence) - offset
+        while offset < len(images):
+            if len(images) - offset < self.pages_per_signature:
+                self.pages_per_signature = len(images) - offset
             for i in self.signature_page_order():
                 big_i = offset + i - 1
-                page = image.sequence[big_i]
+                page: Image = images[big_i]
                 if self.should_rotate_page(i):
-                    page.rotate(180)
+                    page = page.rotate(180)
                 # print(f"adding page {big_i}")
-                paginated_image.sequence.append(page)
+                paginated_images.append(page)
             offset += self.pages_per_signature
         self.pages_per_signature = tmp_pps
-        self.save_images(paginated_image, filename)
-        paginated_image.close()
+        self.save_images(paginated_images, filename)
 
-    def save_images(self, image: Image, filename: str):
-        layout = Image()
+    def save_images(self, images: list, filename: str):
+        layout = []
         if self.manual_layout and self.num_up == 4:
-            for i in range(int(len(image.sequence) / self.num_up)):
-                with Drawing() as draw:
-                    side = Image(resolution=self.dpi,
-                                 height=int(self.paper_height/2.54*self.dpi),
-                                 width=int(self.paper_width/2.54*self.dpi))
-                    pages = image.sequence[i*self.num_up:(i+1)*self.num_up]
-                    # we want 5mm on top, on bottom, then repeat.
-                    top_margin = int(self.top_margin / 25.4 * self.dpi)
-                    page_height = int((side.height - top_margin*4)/2)
-                    page_width = int(page_height * pages[0].width / pages[0].height)
-                    left_margin = int((side.width - 2 * page_width)/2)
-                    print(f"laying out pages {i*self.num_up + 1} to {(i+1)*self.num_up}")
-                    print("1, ", end=" ")
-                    draw.composite(operator='over',
-                                   left=left_margin,
-                                   top=top_margin,
-                                   width=page_width,
-                                   height=page_height,
-                                   image=pages[0].sequence[0])
-                    print("2, ", end=" ")
-                    draw.composite(operator='over',
-                                   left=left_margin+page_width,
-                                   top=top_margin,
-                                   width=page_width,
-                                   height=page_height,
-                                   image=pages[1].sequence[0])
-                    print("3, ", end=" ")
-                    draw.composite(operator='over',
-                                   left=left_margin,
-                                   top=top_margin*3+page_height,
-                                   width=page_width,
-                                   height=page_height,
-                                   image=pages[2].sequence[0])
-                    print("4, ", end=" ")
-                    draw.composite(operator='over',
-                                   left=left_margin+page_width,
-                                   top=top_margin*3+page_height,
-                                   width=page_width,
-                                   height=page_height,
-                                   image=pages[3].sequence[0])
-                    print("draw, ", end=" ")
-                    draw(side)
-                    print("layout")
-                    layout.sequence.append(side)
-        else:
-            layout = image
-        layout.compression = "jpeg"
-        layout.save(filename=filename)
+            for i in range(int(len(images) / self.num_up)):
+                side = Image.new("RGB",
+                                 (int(self.paper_width / 2.54 * self.dpi), int(self.paper_height / 2.54 * self.dpi)),
+                                 "white")
+                pages = images[i * self.num_up:(i + 1) * self.num_up]
+                # we want 5mm on top, on bottom, then repeat.
+                top_margin = int(self.top_margin / 25.4 * self.dpi)
+                page_height = int((side.height - top_margin * 4) / 2)
+                page_width = int(page_height * pages[0].width / pages[0].height)
+                left_margin = int((side.width - 2 * page_width) / 2)
+                print(f"laying out pages {i * self.num_up + 1} to {(i + 1) * self.num_up}")
+                page0 = pages[0].resize((page_width, page_height))
+                page1 = pages[1].resize((page_width, page_height))
+                page2 = pages[2].resize((page_width, page_height))
+                page3 = pages[3].resize((page_width, page_height))
+                side.paste(page0,
+                           (left_margin,
+                            top_margin,
+                            left_margin + page_width,
+                            top_margin + page_height))
+                side.paste(page1,
+                           (left_margin + page_width,
+                            top_margin,
+                            left_margin + 2 * page_width,
+                            top_margin + page_height))
+                side.paste(page2,
+                           (left_margin,
+                            top_margin * 3 + page_height,
+                            left_margin + page_width,
+                            top_margin * 3 + 2 * page_height))
+                side.paste(page3,
+                           (left_margin + page_width,
+                            top_margin * 3 + page_height,
+                            left_margin + 2 * page_width,
+                            top_margin * 3 + 2 * page_height))
+                layout.append(side)
+        fp = open(filename, "wb")
+        layout[0].save(fp, save_all=True, append_images=layout[1:])
+        fp.close()
