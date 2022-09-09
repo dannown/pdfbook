@@ -1,5 +1,7 @@
 .*.sw?
+*.pyc
 .idea
+*.egg-info
 poetry.lock
 pyproject.toml
 /build/
