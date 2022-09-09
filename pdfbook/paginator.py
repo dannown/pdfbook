@@ -1,5 +1,4 @@
-from PIL import Image
-from typing import List
+from PIL import Image, ImageDraw
 
 
 class Paginator:
@@ -12,6 +11,7 @@ class Paginator:
         self.paper_height = 29.7
         self.dpi = 600.0
         self.top_margin = 5  # in mm!
+        self.include_last_page_marker = True
 
     def signature_page_order(self):
         if self.num_up == 4:
@@ -80,7 +80,9 @@ class Paginator:
     def save_images(self, images: list, filename: str):
         layout = []
         if self.manual_layout and self.num_up == 4:
-            for i in range(int(len(images) / self.num_up)):
+            num_sheets = int(len(images) / self.num_up)
+            num_sheets_per_sig = int(self.pages_per_signature / self.num_up)
+            for i in range(num_sheets):
                 side = Image.new("RGB",
                                  (int(self.paper_width / 2.54 * self.dpi), int(self.paper_height / 2.54 * self.dpi)),
                                  "white")
@@ -115,6 +117,16 @@ class Paginator:
                             top_margin * 3 + page_height,
                             left_margin + 2 * page_width,
                             top_margin * 3 + 2 * page_height))
+                if (i + 1) % num_sheets_per_sig == 0 or i + 1 == num_sheets:
+                    # last sheet for the signature
+                    draw = ImageDraw.Draw(side)
+                    colors = ["LightGreen", "MediumOrchid", "Pink", "HotPink", "LightPink", "LightBlue"]
+                    for box in range(6):
+                        draw.rectangle((side.width - (box + 1) * top_margin / 4,
+                                        side.height - (box + 1) * top_margin / 4, side.width - box * top_margin / 4,
+                                        side.height - box * top_margin / 4),
+                                       fill=colors[box], outline="Black")
+
                 layout.append(side)
         fp = open(filename, "wb")
         layout[0].save(fp, save_all=True, append_images=layout[1:])
