@@ -72,15 +72,17 @@ class Config:
                 file.config_dict = {**file.config_dict, **file_dict}
                 if 'skip' in file_dict:
                     if isinstance(file_dict['skip'], str):
-                        file.config_dict['skip'] = '|'.join([file_dict['skip'], file.config_dict['skip']])
+                        if 'skip' in self.config_dict:
+                            file.config_dict['skip'] = '|'.join([file_dict['skip'], self.config_dict['skip']])
                     else:
-                        file_dict['skip'].append(file.config_dict['skip'])
+                        file_dict['skip'].append(self.config_dict['skip'])
                         file.config_dict['skip'] = '|'.join(file_dict['skip'])
+                    print(f"skipping file config {file.config_dict['skip']}")
                 if 'insert_after' in file_dict:
                     if isinstance(file_dict['insert_after'], str):
-                        if 'insert_after' in file.config_dict:
-                            file.config_dict['insert_after'] = '|'.join(
-                                [file_dict['insert_after'], file.config_dict['insert_after']])
+                        if 'insert_after' in self.config_dict:
+                            file.config_dict['insert_after'] = '|'.join([file_dict['insert_after'],
+                                                                         self.config_dict['insert_after']])
                     else:
                         file_dict['insert_after'].append(self.config_dict['insert_after'])
                         file.config_dict['insert_after'] = '|'.join(file_dict['insert_after'])
