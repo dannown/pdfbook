@@ -21,7 +21,7 @@ config = Config(configfile)
 pdf_output = Image()
 books_count = 1
 cbz = None
-paginator = Paginator(num_up=config.config['n_up'], pages_per_signature=config.config['pages_per_signature'])
+paginator = Paginator(num_up=config.config_dict['n_up'], pages_per_signature=config.config_dict['pages_per_signature'])
 
 for file_config in config.files():
     file_pages = Image()
@@ -87,11 +87,12 @@ for file_config in config.files():
         pdf_output = next_book
 
 if books_count > 1:
-    print(f"writing out book {config.config['output_filename']}_{books_count:03d}.pdf")
-    paginator.write_paginated_images(pdf_output,
-                                     config.full_path(f"{config.config['output_filename']}_{books_count:03d}.pdf"))
+    if file_config.should_print(f"{books_count:03d}"):
+        print(f"writing out book {config.config_dict['output_filename']}_{books_count:03d}.pdf")
+        paginator.write_paginated_images(pdf_output,
+                                         config.full_path(f"{config.config_dict['output_filename']}_{books_count:03d}.pdf"))
 else:
     paginator.write_paginated_images(pdf_output,
-                                     config.full_path(f"{config.config['output_filename']}.pdf"))
+                                     config.full_path(f"{config.config_dict['output_filename']}.pdf"))
 pdf_output.close()
 cbz.close()

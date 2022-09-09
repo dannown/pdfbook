@@ -93,32 +93,37 @@ class Paginator:
                     page_width = int(page_height * pages[0].width / pages[0].height)
                     left_margin = int((side.width - 2 * page_width)/2)
                     print(f"laying out pages {i*self.num_up + 1} to {(i+1)*self.num_up}")
+                    print("1, ", end=" ")
                     draw.composite(operator='over',
                                    left=left_margin,
                                    top=top_margin,
                                    width=page_width,
                                    height=page_height,
-                                   image=pages[0])
+                                   image=pages[0].sequence[0])
+                    print("2, ", end=" ")
                     draw.composite(operator='over',
                                    left=left_margin+page_width,
                                    top=top_margin,
                                    width=page_width,
                                    height=page_height,
-                                   image=pages[1])
+                                   image=pages[1].sequence[0])
+                    print("3, ", end=" ")
                     draw.composite(operator='over',
                                    left=left_margin,
                                    top=top_margin*3+page_height,
                                    width=page_width,
                                    height=page_height,
-                                   image=pages[2])
+                                   image=pages[2].sequence[0])
+                    print("4, ", end=" ")
                     draw.composite(operator='over',
                                    left=left_margin+page_width,
                                    top=top_margin*3+page_height,
                                    width=page_width,
                                    height=page_height,
-                                   image=pages[3])
+                                   image=pages[3].sequence[0])
+                    print("draw, ", end=" ")
                     draw(side)
-                    side.save(filename=f"/tmp/{i*self.num_up + 1:03d}-{(i+1)*self.num_up:03d}.pdf")
+                    print("layout")
                     layout.sequence.append(side)
         else:
             layout = image
