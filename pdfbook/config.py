@@ -39,6 +39,19 @@ class Config:
         new_config.config_dict = self.config_dict.copy()
         return new_config
 
+    def print_all_file_names(self):
+        return 'print_all_file_names' in self.config_dict
+
+    def blank_color(self):
+        if 'blank_color' not in self.config_dict:
+            return "white"
+        bc = self.config_dict['blank_color']
+        if isinstance(bc, str):
+            return bc
+        if isinstance(bc, list):
+            return tuple(bc)
+        return bc
+
     def file_name(self):
         return self.full_path(self.config_dict['name'])
 

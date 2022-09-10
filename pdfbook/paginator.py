@@ -1,4 +1,5 @@
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
+import os
 
 
 class Paginator:
@@ -12,6 +13,7 @@ class Paginator:
         self.dpi = 600.0
         self.top_margin = 5  # in mm!
         self.include_last_page_marker = True
+        self.register_count = 0
 
     def signature_page_order(self):
         if self.num_up == 4:
@@ -121,11 +123,18 @@ class Paginator:
                     # last sheet for the signature
                     draw = ImageDraw.Draw(side)
                     colors = ["LightGreen", "MediumOrchid", "Pink", "HotPink", "LightPink", "LightBlue"]
+                    self.register_count += 1
+                    font = ImageFont.truetype(
+                        os.path.join(os.path.dirname(__file__), "resources/anwb-uu.woff.ttf"), 30)
                     for box in range(6):
                         draw.rectangle((side.width - (box + 1) * top_margin / 4,
                                         side.height - (box + 1) * top_margin / 4, side.width - box * top_margin / 4,
                                         side.height - box * top_margin / 4),
                                        fill=colors[box], outline="Black")
+                    draw.text((side.width - (box + 1) * top_margin / 4,
+                               side.height - (box + 1) * top_margin / 4), f"{self.register_count:03d}",
+                              font=font,
+                              fill="black")
 
                 layout.append(side)
         fp = open(filename, "wb")

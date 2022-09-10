@@ -38,6 +38,8 @@ for file_config in config.files():
     name_list = cbz.namelist().copy()
     name_list.sort()
     for name in name_list:
+        if file_config.print_all_file_names():
+            print(f"file: {name}")
         if re.search(".*\\.(jpg|png)", name) is None:
             continue
         if file_config.should_skip(name):
@@ -47,18 +49,17 @@ for file_config in config.files():
         page = Image.open(BytesIO(page_blob))
         # insert a page before. if this page is too wide, insert a half-width.
         if file_config.insert_before(name):
-            if paginator.blank is not None:
-                file_pages.append(paginator.blank)
-            else:
+            if paginator.blank is None:
                 if page.width > page.height:
-                    file_pages.append(Image.new("RGB", (int(page.width/2), page.height), "white"))
+                    paginator.blank = Image.new("RGB", (int(page.width / 2), page.height), file_config.blank_color())
                 else:
-                    file_pages.append(Image.new("RGB", (page.width, page.height), "white"))
+                    paginator.blank = Image.new("RGB", (page.width, page.height), file_config.blank_color())
+            file_pages.append(paginator.blank)
 
         if page.width > page.height:
             print(f"over-wide page. splitting {name}.")
             page1 = page.crop((0, 0, int(page.width / 2), page.height))
-            page2 = page.crop((int(page.width/2), 0, page.width, page.height))
+            page2 = page.crop((int(page.width / 2), 0, page.width, page.height))
             if (len(file_pages) + len(pdf_output)) % 2 != 1:
                 print(f"split book is imbalanced on file {name} from {file_config.file_name()}. "
                       f"You gotta deal with it.")
