@@ -14,6 +14,8 @@ class Paginator:
         self.top_margin = 5  # in mm!
         self.include_last_page_marker = True
         self.register_count = 0
+        self.font = ImageFont.truetype(
+            os.path.join(os.path.dirname(__file__), "resources/anwb-uu.woff.ttf"), 30)
 
     def signature_page_order(self):
         if self.num_up == 4:
@@ -82,6 +84,7 @@ class Paginator:
     def save_images(self, images: list, filename: str):
         layout = []
         if self.manual_layout and self.num_up == 4:
+            print(f"laying out {len(images)} pages. ", end='')
             num_sheets = int(len(images) / self.num_up)
             num_sheets_per_sig = int(self.pages_per_signature / self.num_up)
             for i in range(num_sheets):
@@ -94,7 +97,7 @@ class Paginator:
                 page_height = int((side.height - top_margin * 4) / 2)
                 page_width = int(page_height * pages[0].width / pages[0].height)
                 left_margin = int((side.width - 2 * page_width) / 2)
-                print(f"laying out pages {i * self.num_up + 1} to {(i + 1) * self.num_up}")
+                print(".", end='')
                 page0 = pages[0].resize((page_width, page_height))
                 page1 = pages[1].resize((page_width, page_height))
                 page2 = pages[2].resize((page_width, page_height))
@@ -124,19 +127,24 @@ class Paginator:
                     draw = ImageDraw.Draw(side)
                     colors = ["LightGreen", "MediumOrchid", "Pink", "HotPink", "LightPink", "LightBlue"]
                     self.register_count += 1
-                    font = ImageFont.truetype(
-                        os.path.join(os.path.dirname(__file__), "resources/anwb-uu.woff.ttf"), 30)
                     for box in range(6):
                         draw.rectangle((side.width - (box + 1) * top_margin / 4,
                                         side.height - (box + 1) * top_margin / 4, side.width - box * top_margin / 4,
                                         side.height - box * top_margin / 4),
                                        fill=colors[box], outline="Black")
-                    draw.text((side.width - (box + 1) * top_margin / 4,
-                               side.height - (box + 1) * top_margin / 4), f"{self.register_count:03d}",
-                              font=font,
+                    draw.text((side.width - 6 * top_margin / 4,
+                               side.height - 6 * top_margin / 4), f"{self.register_count:03d}",
+                              font=self.font,
                               fill="black")
+                elif (i + 1) % 2 == 0:
+                    draw = ImageDraw.Draw(side)
+                    draw.text((side.width - 6 * top_margin / 4,
+                               side.height - 6 * top_margin / 4), f"{self.register_count+1:03d}",
+                              font=self.font,
+                              fill="grey")
 
                 layout.append(side)
         fp = open(filename, "wb")
         layout[0].save(fp, save_all=True, append_images=layout[1:])
         fp.close()
+        print(" Done.")
