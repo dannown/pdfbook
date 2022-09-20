@@ -20,7 +20,9 @@ config = Config(configfile)
 pdf_output = []
 books_count = 1
 cbz = None
-paginator = Paginator(num_up=config.config_dict['n_up'], pages_per_signature=config.config_dict['pages_per_signature'])
+paginator = Paginator(num_up=config.config_dict['n_up'],
+                      pages_per_signature=config.config_dict['pages_per_signature'],
+                      dpi=config.config_dict.get('dpi'))
 
 for file_config in config.files():
     file_pages = []

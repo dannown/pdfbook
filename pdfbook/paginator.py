@@ -3,19 +3,23 @@ import os
 
 
 class Paginator:
-    def __init__(self, num_up: int, pages_per_signature: int, blank: Image = None):
+    def __init__(self, num_up: int, pages_per_signature: int, blank: Image = None, dpi: int = None):
+        self.sheet_in_reg = 0
         self.num_up = num_up
         self.pages_per_signature = pages_per_signature
         self.blank = blank
-        self.manual_layout = True
         self.paper_width = 21.0
         self.paper_height = 29.7
-        self.dpi = 600.0
+        self.dpi = 600.0 if dpi is None else dpi
+        self.number_offset = (10.0, 3.0)  # in mm
         self.top_margin = 5  # in mm!
         self.include_last_page_marker = True
         self.register_count = 0
         self.font = ImageFont.truetype(
             os.path.join(os.path.dirname(__file__), "resources/anwb-uu.woff.ttf"), 30)
+
+    def mm_to_pixels(self, mm):
+        return mm / 25.4 * self.dpi
 
     def signature_page_order(self):
         if self.num_up == 4:
@@ -83,16 +87,35 @@ class Paginator:
 
     def save_images(self, images: list, filename: str):
         layout = []
-        if self.manual_layout and self.num_up == 4:
-            print(f"laying out {len(images)} pages. ", end='')
-            num_sheets = int(len(images) / self.num_up)
-            num_sheets_per_sig = int(self.pages_per_signature / self.num_up)
-            for i in range(num_sheets):
-                side = Image.new("RGB",
-                                 (int(self.paper_width / 2.54 * self.dpi), int(self.paper_height / 2.54 * self.dpi)),
-                                 "white")
-                pages = images[i * self.num_up:(i + 1) * self.num_up]
-                # we want 5mm on top, on bottom, then repeat.
+
+        print(f"laying out {len(images)} pages. ", end='')
+        num_sheets = int(len(images) / self.num_up)
+        num_sheets_per_sig = int(self.pages_per_signature / self.num_up)
+        for i in range(num_sheets):
+            side = Image.new("RGB",
+                             (int(self.paper_width / 2.54 * self.dpi), int(self.paper_height / 2.54 * self.dpi)),
+                             "white")
+            pages = images[i * self.num_up:(i + 1) * self.num_up]
+            if self.num_up == 2:
+                left_margin = int(self.top_margin / 25.4 * self.dpi)
+                page_height = int(side.width - left_margin * 2)
+                page_width = int(page_height * pages[0].width / pages[0].height)
+                top_margin = int((side.height - 2 * page_width) / 2)
+                print(".", end='')
+                page0 = pages[0].resize((page_width, page_height)).rotate(270, expand=True)
+                page1 = pages[1].resize((page_width, page_height)).rotate(270, expand=True)
+                side.paste(page0,
+                           (left_margin,
+                            top_margin,
+                            left_margin + page_height,
+                            top_margin + page_width))
+                side.paste(page1,
+                           (left_margin,
+                            top_margin + page_width,
+                            left_margin + page_height,
+                            top_margin + 2 * page_width))
+            else:  # self.num_up == 4:
+                # we want `top_margin` (5mm) on top, on bottom, then repeat.
                 top_margin = int(self.top_margin / 25.4 * self.dpi)
                 page_height = int((side.height - top_margin * 4) / 2)
                 page_width = int(page_height * pages[0].width / pages[0].height)
@@ -122,28 +145,33 @@ class Paginator:
                             top_margin * 3 + page_height,
                             left_margin + 2 * page_width,
                             top_margin * 3 + 2 * page_height))
-                if (i + 1) % num_sheets_per_sig == 0 or i + 1 == num_sheets:
-                    # last sheet for the signature
-                    draw = ImageDraw.Draw(side)
-                    colors = ["LightGreen", "MediumOrchid", "Pink", "HotPink", "LightPink", "LightBlue"]
-                    self.register_count += 1
-                    for box in range(6):
-                        draw.rectangle((side.width - (box + 1) * top_margin / 4,
-                                        side.height - (box + 1) * top_margin / 4, side.width - box * top_margin / 4,
-                                        side.height - box * top_margin / 4),
-                                       fill=colors[box], outline="Black")
-                    draw.text((side.width - 6 * top_margin / 4,
-                               side.height - 6 * top_margin / 4), f"{self.register_count:03d}",
-                              font=self.font,
-                              fill="black")
-                elif (i + 1) % 2 == 0:
-                    draw = ImageDraw.Draw(side)
-                    draw.text((side.width - 6 * top_margin / 4,
-                               side.height - 6 * top_margin / 4), f"{self.register_count+1:03d}",
-                              font=self.font,
-                              fill="grey")
+            dx = self.mm_to_pixels(self.number_offset[0])
+            dy = self.mm_to_pixels(self.number_offset[1])
+            if (i + 1) % num_sheets_per_sig == 0 or i + 1 == num_sheets:
+                # last sheet for the signature
+                self.register_count += 1
+                self.sheet_in_reg = 0
+                draw = ImageDraw.Draw(side)
+                draw.text((side.width - dx,
+                           side.height - dy), f"{self.register_count:03d}",
+                          font=self.font,
+                          fill="black")
+            elif (i + 1) % 2 == 0:
+                # every other sheet (so once per folio)
+                draw = ImageDraw.Draw(side)
+                draw.text((side.width - dx,
+                           side.height - dy), f"{self.register_count + 1:03d}",
+                          font=self.font,
+                          fill="grey")
+            else:
+                self.sheet_in_reg += 1
+                draw = ImageDraw.Draw(side)
+                draw.text((side.width - dx,
+                           side.height - dy), f"{self.sheet_in_reg:02d}",
+                          font=self.font,
+                          fill="lightgrey")
 
-                layout.append(side)
+            layout.append(side)
         fp = open(filename, "wb")
         layout[0].save(fp, save_all=True, append_images=layout[1:])
         fp.close()
