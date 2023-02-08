@@ -8,18 +8,21 @@ class Paginator:
         self.num_up = num_up
         self.pages_per_signature = pages_per_signature
         self.blank = blank
-        self.paper_width = 21.0
-        self.paper_height = 29.7
-        self.dpi = 600.0 if dpi is None else dpi
+        self.blank_color = "white"
+        self.paper_width = 210
+        self.paper_height = 297
+        self.dpi = 300.0 if dpi is None else dpi
         self.number_offset = (10.0, 3.0)  # in mm
         self.top_margin = 5  # in mm!
         self.include_last_page_marker = True
         self.register_count = 0
         self.font = ImageFont.truetype(
             os.path.join(os.path.dirname(__file__), "resources/anwb-uu.woff.ttf"), 30)
+        self.clipped_signatures = {}
+        self.clipped_sheets = []
 
     def mm_to_pixels(self, mm):
-        return mm / 25.4 * self.dpi
+        return int(mm / 25.4 * self.dpi)
 
     def signature_page_order(self):
         if self.num_up == 4:
@@ -67,7 +70,7 @@ class Paginator:
                 if self.blank is not None:
                     images.append(self.blank)
                 else:
-                    images.append(Image.new("RGB", (p.width, p.height), "white"))
+                    images.append(Image.new("RGB", (p.width, p.height), self.blank_color))
         paginated_images = []
         offset = 0
         tmp_pps = self.pages_per_signature
@@ -91,16 +94,32 @@ class Paginator:
         print(f"laying out {len(images)} pages. ", end='')
         num_sheets = int(len(images) / self.num_up)
         num_sheets_per_sig = int(self.pages_per_signature / self.num_up)
+        side_a = None
+        clipped = False
         for i in range(num_sheets):
             side = Image.new("RGB",
-                             (int(self.paper_width / 2.54 * self.dpi), int(self.paper_height / 2.54 * self.dpi)),
-                             "white")
+                             (self.mm_to_pixels(self.paper_width), self.mm_to_pixels(self.paper_height)),
+                             self.blank_color)
             pages = images[i * self.num_up:(i + 1) * self.num_up]
             if self.num_up == 2:
-                left_margin = int(self.top_margin / 25.4 * self.dpi)
+                # pages[0].height is actually the width of the sheet.
+                # pages[0].width is actually half the height of the
+                left_margin = self.mm_to_pixels(self.top_margin)
                 page_height = int(side.width - left_margin * 2)
                 page_width = int(page_height * pages[0].width / pages[0].height)
                 top_margin = int((side.height - 2 * page_width) / 2)
+                if top_margin < 0:
+                    clipped = True
+                    sir = self.sheet_in_reg if (i + 1) % 2 == 0 else self.sheet_in_reg + 1
+                    rc = self.register_count + 1
+                    clipped_sheets = self.clipped_signatures.pop(rc, set())
+                    clipped_sheets.add(sir)
+                    self.clipped_signatures[rc] = clipped_sheets
+
+                    top_margin = left_margin
+                    page_width = int((side.height - top_margin * 2) / 2)
+                    page_height = int(page_width * pages[0].height / pages[0].width)
+                    left_margin = int((side.width - page_height) / 2)
                 print(".", end='')
                 page0 = pages[0].resize((page_width, page_height)).rotate(270, expand=True)
                 page1 = pages[1].resize((page_width, page_height)).rotate(270, expand=True)
@@ -116,7 +135,7 @@ class Paginator:
                             top_margin + 2 * page_width))
             else:  # self.num_up == 4:
                 # we want `top_margin` (5mm) on top, on bottom, then repeat.
-                top_margin = int(self.top_margin / 25.4 * self.dpi)
+                top_margin = self.mm_to_pixels(self.top_margin)
                 page_height = int((side.height - top_margin * 4) / 2)
                 page_width = int(page_height * pages[0].width / pages[0].height)
                 left_margin = int((side.width - 2 * page_width) / 2)
@@ -170,9 +189,24 @@ class Paginator:
                            side.height - dy), f"{self.sheet_in_reg:02d}",
                           font=self.font,
                           fill="lightgrey")
-
+            if (i + 1) % 2 == 0:
+                if clipped:
+                    self.clipped_sheets.append(side_a)
+                    self.clipped_sheets.append(side)
+                    side_a = None
+                    clipped = False
+            else:
+                side_a = side
             layout.append(side)
         fp = open(filename, "wb")
         layout[0].save(fp, save_all=True, append_images=layout[1:])
         fp.close()
         print(" Done.")
+
+    def save_clipped_pages(self, filename):
+        if len(self.clipped_sheets) == 0:
+            return
+        print(f"Saving {len(self.clipped_sheets)} clipped pages")
+        fp = open(filename, "wb")
+        self.clipped_sheets[0].save(fp, save_all=True, append_images=self.clipped_sheets[1:])
+        fp.close()

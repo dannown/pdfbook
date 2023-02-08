@@ -36,7 +36,7 @@ for file_config in config.files():
 
     # get optional blank page
     paginator.blank = Image.open(BytesIO(cbz.read(file_config.blank()))) if file_config.blank() is not None else None
-
+    paginator.blank_color = file_config.blank_color()
     name_list = cbz.namelist().copy()
     name_list.sort()
     for name in name_list:
@@ -103,4 +103,13 @@ if books_count > 1:
 else:
     paginator.write_paginated_images(pdf_output,
                                      config.full_path(f"{config.config_dict['output_filename']}.pdf"))
+
+num_clipped_pages = 0
+for sig in paginator.clipped_signatures:
+    print(f"clipped signature {sig}({', '.join([str(x) for x in paginator.clipped_signatures[sig]])})")
+    num_clipped_pages += len(paginator.clipped_signatures[sig])
+
+if num_clipped_pages > 0:
+    print(f"That's {num_clipped_pages} pages you need to reprint.")
+    paginator.save_clipped_pages(config.full_path(f"{config.config_dict['output_filename']}_clipped.pdf"))
 cbz.close()
