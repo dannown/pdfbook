@@ -1,0 +1,4 @@
+-e git+https://github.com/dannown/pdfbook.git@75b835dbed2f79d2410c38b60070609db252fc84#egg=pdfbook
+Pillow==9.4.0
+PyYAML==6.0
+rarfile==4.0
